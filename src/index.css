@@ -1,0 +1,51 @@
+:root {
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    sans-serif;
+  line-height: 1.6;
+  font-weight: 400;
+  color: #e8ecf4;
+  background-color: #0b1020;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  --text: #e8ecf4;
+  --muted: #98a2b3;
+  --border: rgba(255, 255, 255, 0.08);
+  --card: rgba(255, 255, 255, 0.03);
+  --panel: #0f172a;
+  --accent-bg: rgba(255, 255, 255, 0.02);
+  --input-bg: rgba(255, 255, 255, 0.04);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(circle at 20% 20%, rgba(37, 99, 235, 0.12), transparent 25%),
+    radial-gradient(circle at 80% 0%, rgba(124, 58, 237, 0.15), transparent 28%),
+    #0b1020;
+}
+
+a {
+  color: inherit;
+}
+
+:root[data-theme='light'] {
+  color: #0f172a;
+  background-color: #f5f7fb;
+  --text: #0f172a;
+  --muted: #4b5563;
+  --border: rgba(0, 0, 0, 0.08);
+  --card: #ffffff;
+  --panel: #ffffff;
+  --accent-bg: #f3f4f6;
+  --input-bg: #ffffff;
+}
+
+:root[data-theme='light'] body {
+  background: linear-gradient(135deg, #f7f9fc, #eef2f7);
+}
