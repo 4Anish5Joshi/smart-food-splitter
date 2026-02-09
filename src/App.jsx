@@ -118,6 +118,7 @@ const numberToWords = (num) => {
 const STORAGE_KEY = 'smart-food-splitter-v2'
 const USER_KEY = 'smart-food-splitter-user'
 const CREDS_KEY = 'smart-food-splitter-creds'
+const BASE_PATH = '/smart-food-splitter'
 const PALETTE = [
   '#60a5fa',
   '#a78bfa',
@@ -213,7 +214,10 @@ function App() {
         slug: s.slug || uniqueSlug(s.name || `split-${idx + 1}`, arr, s.id)
       }))
       setSplits(hydratedSplits)
-      const pathParts = window.location.pathname.split('/').filter(Boolean)
+      const rawPath = window.location.pathname
+      const trimmed =
+        rawPath.startsWith(BASE_PATH) ? rawPath.slice(BASE_PATH.length) : rawPath
+      const pathParts = trimmed.split('/').filter(Boolean)
       const pathSlug = pathParts.length ? pathParts[pathParts.length - 1] : null
       const fromUrl =
         pathSlug &&
@@ -281,11 +285,11 @@ function App() {
   useEffect(() => {
     if (!hasHydrated.current) return
     if (!user) {
-      window.history.replaceState({}, '', '/login')
+      window.history.replaceState({}, '', `${BASE_PATH}/login`)
       return
     }
     if (splits.length === 0) {
-      window.history.replaceState({}, '', '/home')
+      window.history.replaceState({}, '', `${BASE_PATH}/home`)
       return
     }
     updateUrlFromSplitId(selectedId)
@@ -558,7 +562,7 @@ function App() {
   const totalInWords = numberToWords(totalBillNum)
   const splitUrl =
     currentSplit?.slug && window.location.origin
-      ? `${window.location.origin}/${currentSplit.slug}`
+      ? `${window.location.origin}${BASE_PATH}/${currentSplit.slug}`
       : window.location.origin || ''
 
   const currentBalances = useMemo(
@@ -612,7 +616,7 @@ function App() {
   const updateUrlFromSplitId = (id, list = splits) => {
     const target = list.find((s) => s.id === id)
     const slug = target?.slug
-    const newPath = slug ? `/${slug}` : '/'
+    const newPath = slug ? `${BASE_PATH}/${slug}` : `${BASE_PATH}/`
     window.history.replaceState({}, '', newPath)
   }
 
