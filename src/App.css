@@ -556,14 +556,16 @@
 
   .print-qr {
     margin: 12px 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
   }
 
   .print-qr img {
-    width: 120px;
-    height: 120px;
+    width: 50px;
+    height: 50px;
     object-fit: contain;
     display: block;
-    margin-bottom: 6px;
   }
 
   .print-table {

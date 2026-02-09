@@ -1554,7 +1554,7 @@ function App() {
                 )}`}
                 alt="QR to open split"
               />
-              <p className="muted small">Scan to open: {splitUrl}</p>
+              <p className="muted small">Scan to visit website: {splitUrl}</p>
             </div>
           )}
         </div>
