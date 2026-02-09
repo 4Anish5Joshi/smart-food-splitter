@@ -280,8 +280,16 @@ function App() {
 
   useEffect(() => {
     if (!hasHydrated.current) return
+    if (!user) {
+      window.history.replaceState({}, '', '/login')
+      return
+    }
+    if (splits.length === 0) {
+      window.history.replaceState({}, '', '/home')
+      return
+    }
     updateUrlFromSplitId(selectedId)
-  }, [selectedId, splits])
+  }, [user, selectedId, splits])
 
   useEffect(() => {
     if (!hydrated) return
