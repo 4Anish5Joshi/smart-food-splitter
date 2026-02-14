@@ -704,10 +704,10 @@ function App() {
             <p className="eyebrow brand-title">Smart Food Splitter</p>
           </div>
           <h2>Sign in</h2>
-          <p className="muted small">
+          {/* <p className="muted small">
             Demo login — first login sets your email/password locally. Next time
             it must match.
-          </p>
+          </p> */}
           <form className="auth-form" onSubmit={handleLogin}>
             <label className="field">
               <span>Email</span>
