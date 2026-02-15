@@ -2,6 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import './App.css'
 import foodLogo from './assets/food-logo.png'
 import foodLogoWhite from './assets/food-logo-white.png'
+import Header from './components/Header'
+import Login from './components/Login'
+import Home from './components/Home'
+import ExportPdf from './components/ExportPdf'
+import CreateSplitModal from './components/modals/CreateSplitModal'
+import AddFriendModal from './components/modals/AddFriendModal'
+import SpendAnalyzerModal from './components/modals/SpendAnalyzerModal'
 
 const formatCurrency = (value) =>
   new Intl.NumberFormat('en-IN', {
@@ -691,49 +698,28 @@ function App() {
     localStorage.removeItem(USER_KEY)
   }
 
+  const headerProps = {
+    theme,
+    hasSplit,
+    onToggleTheme: () => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark')),
+    onLogout: handleLogout,
+    onOpenAnalyzer: () => {
+      setAnalyzerMode('current')
+      setShowAnalyzer(true)
+    }
+  }
+
   if (!user) {
     return (
-      <div className="auth-page">
-        <div className="auth-card">
-          <div className="brand auth-brand">
-            <img
-              src={theme === 'dark' ? foodLogo : foodLogoWhite}
-              alt="Food logo"
-              style={{ width: 140, height: 70, objectFit: 'contain' }}
-            />
-            <p className="eyebrow brand-title">Smart Food Splitter</p>
-          </div>
-          <h2>Sign in</h2>
-          {/* <p className="muted small">
-            Demo login — first login sets your email/password locally. Next time
-            it must match.
-          </p> */}
-          <form className="auth-form" onSubmit={handleLogin}>
-            <label className="field">
-              <span>Email</span>
-              <input
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-            </label>
-            <label className="field">
-              <span>Password</span>
-              <input
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </label>
-            {authError && <p className="error">{authError}</p>}
-            <button className="primary" type="submit">
-              Sign in
-            </button>
-          </form>
-        </div>
-      </div>
+      <Login
+        theme={theme}
+        email={email}
+        password={password}
+        authError={authError}
+        onEmailChange={setEmail}
+        onPasswordChange={setPassword}
+        onSubmit={handleLogin}
+      />
     )
   }
 
@@ -741,828 +727,138 @@ function App() {
     <div className="page">
       <div className="screen-only">
         {showSplash && (
-        <div className="splash">
-          <div className="splash-content">
-            <img
-              src={theme === 'dark' ? foodLogo : foodLogoWhite}
-              alt="Food logo"
-              className="splash-logo"
-              style={{ width: 140, height: 70, objectFit: 'contain' }}
-            />
-            <p className="eyebrow">Smart Food Splitter</p>
-            <div className="loader" aria-label="Loading" />
-          </div>
-        </div>
-      )}
-      {showDeleteModal && (
-        <div className="modal-backdrop" onClick={cancelDeleteSplit}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Delete split</h3>
-            <p className="muted">
-              This split won&apos;t come back after deletion. Proceed?
-            </p>
-            <div className="modal-actions">
-              <button className="ghost" onClick={cancelDeleteSplit}>
-                Cancel
-              </button>
-              <button className="primary danger" onClick={confirmDeleteSplit}>
-                Delete
-              </button>
+          <div className="splash">
+            <div className="splash-content">
+              <img
+                src={theme === 'dark' ? foodLogo : foodLogoWhite}
+                alt="Food logo"
+                className="splash-logo"
+                style={{ width: 140, height: 70, objectFit: 'contain' }}
+              />
+              <p className="eyebrow">Smart Food Splitter</p>
+              <div className="loader" aria-label="Loading" />
             </div>
-          </div>
-        </div>
-      )}
-      {showAnalyzer && (
-        <div className="modal-backdrop" onClick={() => setShowAnalyzer(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>Spend analyzer</h3>
-              <div className="analyzer-controls">
-                <button
-                  className={`ghost small ${
-                    analyzerMode === 'current' ? 'active' : ''
-                  }`}
-                  onClick={() => setAnalyzerMode('current')}
-                >
-                  This split
+      </div>
+        )}
+        {showDeleteModal && (
+          <div className="modal-backdrop" onClick={cancelDeleteSplit}>
+            <div className="modal" onClick={(e) => e.stopPropagation()}>
+              <h3>Delete split</h3>
+              <p className="muted">This split won&apos;t come back after deletion. Proceed?</p>
+              <div className="modal-actions">
+                <button className="ghost" onClick={cancelDeleteSplit}>
+                  Cancel
                 </button>
-                <button
-                  className={`ghost small ${
-                    analyzerMode === 'all' ? 'active' : ''
-                  }`}
-                  onClick={() => setAnalyzerMode('all')}
-                >
-                  All splits
-                </button>
+                <button className="primary danger" onClick={confirmDeleteSplit}>
+                  Delete
+        </button>
               </div>
             </div>
-            <div className="balances analyzer-list">
-              {analyzerMode === 'all' && missingPayerSplits.length > 0 && (
-                <div className="callout">
-                  <strong>Heads up</strong>
-                  <p className="muted small">
-                    {missingPayerSplits.length} split(s) missing a payer. Set
-                    &quot;Who paid?&quot; for each to include them here.
-                  </p>
-                </div>
-              )}
-              {(analyzerMode === 'current'
-                ? currentBalances
-                : overallBalances
-              ).length === 0 ? (
-                <div className="empty-state">
-                  No balances to settle. Add people, set a payer, and enter a
-                  bill.
-                </div>
-              ) : (
-                (analyzerMode === 'current'
-                  ? currentBalances
-                  : overallBalances
-                ).map((tx) => {
-                  const key = settlementKey(tx, analyzerMode)
-                  const settled = !!settlements[key]
-                  return (
-                    <div
-                      key={key}
-                      className={`balance-row ${settled ? 'settled' : ''}`}
-                    >
-                      <div>
-                        <span>
-                          <strong>{tx.from}</strong> → <strong>{tx.to}</strong>
-                        </span>
-                        {tx.splitName && analyzerMode === 'all' && (
-                          <p className="muted small">{tx.splitName}</p>
-                        )}
-                      </div>
-                      <div className="balance-actions">
-                        <strong className="amount">
-                          {formatCurrency(tx.amount)}
-                        </strong>
-                        <button
-                          className={`ghost small ${
-                            settled ? 'success' : ''
-                          }`}
-                          onClick={() => toggleSettlement(tx, analyzerMode)}
-                        >
-                          {settled ? 'Completed ✅' : 'Mark received'}
-                        </button>
-                      </div>
-                    </div>
-                  )
-                })
-              )}
-            </div>
           </div>
-        </div>
-      )}
-      {/* Create split modal */}
-      {showCreateModal && (
-        <div
-          className="modal-backdrop"
-          onClick={() => {
+        )}
+
+        <SpendAnalyzerModal
+          show={showAnalyzer}
+          onClose={() => setShowAnalyzer(false)}
+          analyzerMode={analyzerMode}
+          setAnalyzerMode={setAnalyzerMode}
+          missingPayerSplits={missingPayerSplits}
+          currentBalances={currentBalances}
+          overallBalances={overallBalances}
+          settlements={settlements}
+          settlementKey={settlementKey}
+          toggleSettlement={toggleSettlement}
+          formatCurrency={formatCurrency}
+        />
+
+        <CreateSplitModal
+          show={showCreateModal}
+          onClose={() => {
             setCreateFriendError('')
             setShowCreateModal(false)
           }}
-        >
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Create split</h3>
-            <label className="field">
-              <span>Split name</span>
-              <input
-                type="text"
-                placeholder="Dominos lunch"
-                value={newSplitName}
-                onChange={(e) => setNewSplitName(e.target.value)}
-              />
-            </label>
-            <div className="friends-list">
-              <div className="friends-head">
-                <span>Friends</span>
-                <button className="ghost small" onClick={addFriendRow}>
-                  + Add friend
-                </button>
-              </div>
-              {uniqueFriendNames.length > 0 && (
-                <div className="muted small">Suggestions</div>
-              )}
-              {uniqueFriendNames.length > 0 && (
-                <div className="suggestions">
-                  {uniqueFriendNames.map((name) => (
-                    <span
-                      key={name}
-                      className="chip"
-                      onClick={() => {
-                        const exists = newFriends.some(
-                          (f) => f.name.trim().toLowerCase() === name.toLowerCase()
-                        )
-                        if (exists) return
-                        setNewFriends((prev) => [
-                          ...prev,
-                          { id: Date.now(), name, mrp: '' }
-                        ])
-                      }}
-                    >
-                      {name}
-                    </span>
-                  ))}
-                </div>
-              )}
-              {newFriends.map((f, idx) => (
-                <div key={f.id} className="person-row">
-                  <label className="field small">
-                    <span>Name</span>
-                    <input
-                      type="text"
-                      placeholder={`Friend ${idx + 1}`}
-                      value={f.name}
-                      onChange={(e) =>
-                        updateFriendRow(f.id, 'name', e.target.value)
-                      }
-                    />
-                  </label>
-                  {newFriends.length > 1 && (
-                    <button
-                      className="ghost small danger"
-                      onClick={() => removeFriendRow(f.id)}
-                    >
-                      Remove
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-            {createFriendError && <p className="error-text">{createFriendError}</p>}
-            <div className="modal-actions">
-              <button className="ghost" onClick={() => setShowCreateModal(false)}>
-                Cancel
-              </button>
-              <button
-                className="primary"
-                onClick={createSplit}
-                disabled={!newSplitName.trim()}
-              >
-                Create
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          newSplitName={newSplitName}
+          setNewSplitName={setNewSplitName}
+          newFriends={newFriends}
+          uniqueFriendNames={uniqueFriendNames}
+          addFriendRow={addFriendRow}
+          updateFriendRow={updateFriendRow}
+          removeFriendRow={removeFriendRow}
+          errorText={createFriendError}
+          onCreate={createSplit}
+        />
 
-      {/* Add friend modal (inside selected split) */}
-      {showModal && hasSplit && (
-        <div
-          className="modal-backdrop"
-          onClick={() => {
+        <AddFriendModal
+          show={showModal}
+          hasSplit={hasSplit}
+          onClose={() => {
             setAddFriendError('')
             setShowModal(false)
           }}
-        >
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h3>Add friend</h3>
-            <label className="field">
-              <span>Name</span>
-              <input
-                type="text"
-                placeholder="Friend name"
-                value={newPersonName}
-                onChange={(e) => setNewPersonName(e.target.value)}
-              />
-            </label>
-            <label className="field">
-              <span>MRP portion</span>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                placeholder="0"
-                value={newPersonMrp}
-                onChange={(e) =>
-                  setNewPersonMrp(
-                    e.target.value === '' ? '' : Number(e.target.value)
-                  )
-                }
-              />
-            </label>
-            {addFriendError && <p className="error-text">{addFriendError}</p>}
-            <div className="modal-actions">
-              <button className="ghost" onClick={() => setShowModal(false)}>
-                Cancel
-              </button>
-              <button className="primary" onClick={addPerson}>
-                Save
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          newPersonName={newPersonName}
+          newPersonMrp={newPersonMrp}
+          setNewPersonName={setNewPersonName}
+          setNewPersonMrp={setNewPersonMrp}
+          errorText={addFriendError}
+          onSave={addPerson}
+        />
 
-      <header className="hero">
-        <div>
-          <div className="brand">
-            <img
-              src={theme === 'dark' ? foodLogo : foodLogoWhite}
-              alt="Food logo"
-              style={{ width: 140, height: 70, objectFit: 'contain' }}
-            />
-            <p className="eyebrow brand-title">Smart Food Splitter</p>
-            <button className="ghost small logout-btn" onClick={handleLogout}>
-              Logout
-            </button>
-            {hasSplit && (
-              <button
-                className="ghost small"
-                onClick={() => {
-                  setAnalyzerMode('current')
-                  setShowAnalyzer(true)
-                }}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-              >
-                📊 Spend analyzer
-              </button>
-            )}
-            <button
-              className="ghost small theme-toggle"
-              onClick={() => setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))}
-            >
-              {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
-            </button>
-          </div>
-          <h2>Split the bill by what everyone really ate.</h2>
+        <Home
+          headerProps={headerProps}
+          hasSplit={hasSplit}
+          splits={splits}
+          selectedId={selectedId}
+          splitName={splitName}
+          paidById={paidById}
+          people={people}
+          totals={totals}
+          totalBill={totalBill}
+          totalBillNum={totalBillNum}
+          mrpTotal={mrpTotal}
+          mrpTotalNum={mrpTotalNum}
+          savedAmount={savedAmount}
+          setSplitName={setSplitName}
+          setPaidById={setPaidById}
+          setShowCreateModal={setShowCreateModal}
+          setAddFriendError={setAddFriendError}
+          setShowModal={setShowModal}
+          exportPdf={exportPdf}
+          selectSplit={selectSplit}
+          requestDeleteSplit={requestDeleteSplit}
+          setTotalBill={setTotalBill}
+          setMrpTotal={setMrpTotal}
+          updateCurrentSplit={updateCurrentSplit}
+          removePerson={removePerson}
+          formatCurrency={formatCurrency}
+          uniqueSlug={uniqueSlug}
+          updateUrlFromSplitId={updateUrlFromSplitId}
+          setPeople={setPeople}
+        />
 
-          <div className="split-list">
-            <div className="split-list-head">
-              <div>
-                <p className="eyebrow">Your splits</p>
-                <p className="muted small">
-                  Create a split, then click it to manage calculations.
-                </p>
-              </div>
-              <div className="hero-actions">
-                <button
-                  className="primary no-print"
-                  onClick={() => setShowCreateModal(true)}
-                >
-                  + Create split
-                </button>
-                <button className="ghost no-print" onClick={exportPdf} disabled={!splits.length}>
-                  Export PDF
-                </button>
-                {/* <button className="ghost no-print" onClick={exportSplits}>
-                  Export JSON
-                </button> */}
-                {/* <button
-                  className="ghost no-print"
-                  onClick={() => importInputRef.current?.click()}
-                >
-                  Import JSON
-                </button> */}
-              </div>
-            </div>
-            {splits.length === 0 && (
-              <div className="empty-state">
-                No splits yet. Create one to begin.
-              </div>
-            )}
-            <div className="split-list-items">
-              {splits.map((s) => (
-                <div
-                  key={s.id}
-                  className={`split-tile ${selectedId === s.id ? 'active' : ''}`}
-                >
-                  <button className="split-body" onClick={() => selectSplit(s.id)}>
-      <div>
-                      <strong>{s.name}</strong>
-                      <p className="muted small">
-                        {s.people?.length || 0} friends
-                        {s.people?.length
-                          ? ': ' + s.people.map((p) => p.name).join(', ')
-                          : ''}
-                      </p>
-                    </div>
-                  </button>
-                  <button
-                    className="icon-button"
-                    aria-label="Delete split"
-                    onClick={() => requestDeleteSplit(s.id)}
-                  >
-                    🗑
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {hasSplit && (
-            <div className="form-grid single">
-              <label className="field">
-                <span>Split name</span>
-                <input
-                  type="text"
-                  placeholder="Dominos lunch"
-                  value={splitName}
-                  onChange={(e) => {
-                    setSplitName(e.target.value)
-                    const newSlug = uniqueSlug(
-                      e.target.value || 'split',
-                      splits,
-                      selectedId
-                    )
-                    updateCurrentSplit((s) => ({
-                      ...s,
-                      name: e.target.value,
-                      slug: newSlug
-                    }))
-                    updateUrlFromSplitId(selectedId)
-                  }}
-                />
-              </label>
-              <label className="field">
-                <span>Who paid?</span>
-                <select
-                  value={paidById || ''}
-                  onChange={(e) => {
-                    const next = e.target.value === '' ? null : Number(e.target.value)
-                    setPaidById(next)
-                    updateCurrentSplit((s) => ({ ...s, paidById: next }))
-                  }}
-                >
-                  {people.length === 0 && <option value="">Add people first</option>}
-                  {people.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name || 'Friend'}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              {!paidById && (
-                <div className="callout">
-                  <strong>Set a payer</strong>
-                  <p className="muted small">
-                    Select who paid so balances appear in the analyzer.
-                  </p>
-                </div>
-              )}
+        <input
+          ref={importInputRef}
+          type="file"
+          accept="application/json"
+          style={{ display: 'none' }}
+          onChange={handleImportFile}
+        />
       </div>
-          )}
 
-          <p className="subhead">
-            Enter the total payable amount (with GST/discounts) and each
-            person&apos;s pre-discount MRP. We&apos;ll allocate the final bill
-            by eating efficiency.
-          </p>
-
-          {/* {hasSplit && (
-            <div className="hero-actions">
-              <button className="primary" onClick={() => setShowModal(true)}>
-                + Add friend
-              </button>
-              <button
-                className="ghost"
-                onClick={() => {
-                  setAnalyzerMode('current')
-                  setShowAnalyzer(true)
-                }}
-              >
-                Spend analyzer
-        </button>
-            </div>
-          )} */}
-        </div>
-        <div className="glow-card">
-          <div className="stat">
-            <p>Total payable</p>
-            <strong>{formatCurrency(totalBill || 0)}</strong>
-          </div>
-          <div className="stat">
-            <p>Original MRP</p>
-            <strong>
-              {formatCurrency(
-                (mrpTotal !== '' ? mrpTotal : totals.mrpEnteredTotal) || 0
-              )}
-            </strong>
-          </div>
-          <div className="stat accent">
-            <p>Discount captured</p>
-            <strong>{totals.discountPct.toFixed(1)}%</strong>
-          </div>
-        </div>
-      </header>
-
-      {hasSplit && (
-        <main className="grid">
-          <section className="card">
-            <div className="card-header">
-              <div>
-                <p className="eyebrow">Bill inputs</p>
-                <h2>Order details</h2>
-              </div>
-            </div>
-            <div className="form-grid">
-              <label className="field">
-                <span>Total bill paid (incl. GST & discounts)</span>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={totalBill}
-                    onChange={(e) => {
-                      const val =
-                        e.target.value === '' ? '' : Number(e.target.value)
-                      setTotalBill(val)
-                      updateCurrentSplit((s) => ({ ...s, totalBill: val }))
-                    }}
-                />
-              </label>
-              <label className="field">
-                <span>Original MRP sum (before discounts)</span>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={mrpTotal}
-                  onChange={(e) => {
-                    const val =
-                      e.target.value === '' ? '' : Number(e.target.value)
-                    setMrpTotal(val)
-                    updateCurrentSplit((s) => ({ ...s, mrpTotal: val }))
-                  }}
-                />
-              </label>
-            </div>
-            <p className="hint">
-              If MRP isn&apos;t known, leave it zero and we will base the split on
-              the entered person MRPs.
-            </p>
-            {mrpTotalNum > 0 &&
-              totals.mrpEnteredTotal > 0 &&
-              totals.mrpEnteredTotal !== mrpTotalNum && (
-              <div className="callout">
-                <div>
-                  <strong>Heads up</strong>
-                  <p>
-                    Sum of individual MRPs is{' '}
-                    {formatCurrency(totals.mrpEnteredTotal)} which doesn&apos;t
-                    match the original MRP value. We still use the original MRP
-                    to calculate each person&apos;s efficiency.
-        </p>
-      </div>
-              </div>
-            )}
-          </section>
-
-          <section className="card">
-            <div className="card-header">
-              <div>
-                <p className="eyebrow">Who ate what</p>
-                <h2>People & MRPs</h2>
-              </div>
-              <button
-                className="ghost"
-                onClick={() => {
-                  setAddFriendError('')
-                  setShowModal(true)
-                }}
-              >
-                + Add friend
-              </button>
-            </div>
-            <div className="people-grid">
-              {people.length === 0 && (
-                <div className="empty-state">
-                  No friends yet. Use “+ Add friend” to start.
-                </div>
-              )}
-              {people.map((person) => {
-                const sharePct =
-                  (totals.perPerson.find((p) => p.id === person.id)?.efficiency * 100 || 0).toFixed(1)
-                return (
-                  <div key={person.id} className="person-row">
-                    <div className="person-inputs">
-                      <label className="field small">
-                        <span>Name</span>
-                        <input
-                          type="text"
-                          value={person.name}
-                          onChange={(e) => {
-                            const next = people.map((p) =>
-                              p.id === person.id ? { ...p, name: e.target.value } : p
-                            )
-                            setPeople(next)
-                            updateCurrentSplit((s) => ({ ...s, people: next }))
-                          }}
-                        />
-                      </label>
-                      <label className="field small">
-                        <span>MRP portion</span>
-                        <input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={person.mrp}
-                          onChange={(e) => {
-                            const val =
-                              e.target.value === '' ? '' : Number(e.target.value)
-                            const next = people.map((p) =>
-                              p.id === person.id ? { ...p, mrp: val } : p
-                            )
-                            setPeople(next)
-                            updateCurrentSplit((s) => ({ ...s, people: next }))
-                          }}
-                        />
-                      </label>
-                    </div>
-                    <div className="person-actions">
-                      <div className="pill">{sharePct}% share</div>
-                      <button
-                        className="ghost small danger"
-                        onClick={() => removePerson(person.id)}
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </section>
-
-        {totals.perPerson.length > 0 && (
-          <section className="card">
-            <div className="card-header">
-              <div>
-                <p className="eyebrow">Share chart</p>
-                <h2>Consumption pie</h2>
-              </div>
-            </div>
-            <div className="pie">
-              <div className="pie-shell">
-                <div
-                  className="pie-chart"
-                  style={{
-                    backgroundImage:
-                      totals.pieSegments.length > 0
-                        ? `conic-gradient(${totals.pieSegments.join(',')})`
-                        : 'none'
-                  }}
-                />
-                <div className="pie-center">
-                  <span className="muted small">Shares</span>
-                </div>
-              </div>
-              <div className="pie-legend">
-                {totals.pieSlices.map((slice) => (
-                  <span key={slice.id}>
-                    <span
-                      className="dot"
-                      style={{ background: slice.color }}
-                    />
-                    {slice.name} ({slice.pct.toFixed(1)}%)
-                  </span>
-                ))}
-              </div>
-            </div>
-          </section>
-        )}
-
-          <section className="card full">
-            <div className="card-header">
-              <div>
-                <p className="eyebrow">Split preview</p>
-                <h2>Who pays how much</h2>
-              </div>
-              <div className="totals">
-                <div>
-                  <p>Split total</p>
-                  <strong>{formatCurrency(totals.splitTotal)}</strong>
-                </div>
-                <div>
-                  <p>Bill total</p>
-                  <strong>{formatCurrency(totalBill)}</strong>
-                </div>
-              </div>
-            </div>
-
-            <div className="results">
-              {totals.perPerson.length === 0 && (
-                <div className="empty-state">
-                  Add people and amounts to see the split.
-                </div>
-              )}
-              {totals.perPerson.map((person) => {
-                const pct = (person.efficiency * 100 || 0).toFixed(1)
-                const barPct =
-                  totalBillNum > 0 ? Math.min(100, (person.share / totalBillNum) * 100) : 0
-                return (
-                  <div key={person.id} className="result-row">
-                    <div>
-                      <h3>{person.name}</h3>
-                      <p className="muted">
-                        MRP: {formatCurrency(person.mrp || 0)} · Efficiency: {pct}%
-                      </p>
-                      <div className="bar">
-                        <div className="bar-fill" style={{ width: `${barPct}%` }} />
-                      </div>
-                    </div>
-                    <strong className="amount">{formatCurrency(person.share)}</strong>
-                  </div>
-                )
-              })}
-            </div>
-            <p className="hint">
-              Values use proportional split (person MRP ÷ total MRP × final bill).
-              Rounded to 2 decimals; tiny rounding drift may appear.
-            </p>
-
-            {totals.balances.length > 0 && (
-              <div className="balances">
-                <p className="eyebrow">Who owes whom</p>
-                {totals.balances.map((b, idx) => (
-                  <div key={idx} className="balance-row">
-                    <span>
-                      {b.from} → {b.to}
-                    </span>
-                    <strong>{formatCurrency(b.amount)}</strong>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-        </main>
-      )}
-      <input
-        ref={importInputRef}
-        type="file"
-        accept="application/json"
-        style={{ display: 'none' }}
-        onChange={handleImportFile}
+      <ExportPdf
+        hasSplit={hasSplit}
+        splitName={splitName}
+        payerName={payerName}
+        totalBill={totalBill}
+        mrpTotal={mrpTotal}
+        totals={totals}
+        savedAmount={savedAmount}
+        totalInWords={totalInWords}
+        paidById={paidById}
+        totalBillNum={totalBillNum}
+        formatCurrency={formatCurrency}
+        round2={round2}
+        splitUrl={splitUrl}
       />
-      </div>
-      {hasSplit && (
-        <div className="print-only">
-          <div className="print-header">
-            <div className="print-brand">
-              <img
-                src={foodLogo}
-                alt="Food logo"
-                className="print-logo"
-              />
-              <h1 className="print-title">Smart Food Splitter</h1>
-            </div>
-            <div className="print-meta">
-              <span>
-                <strong>Split:</strong> {splitName || 'Split'}
-              </span>
-              <span>
-                <strong>Payer:</strong> {payerName}
-              </span>
-            </div>
-          </div>
-
-          <table className="print-table">
-            <thead>
-              <tr>
-                <th colSpan={4}>Summary</th>
-              </tr>
-              <tr>
-                <th>Total payable</th>
-                <th>Original MRP</th>
-                <th>Discount</th>
-                <th>Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>{formatCurrency(totalBill || 0)}</td>
-                <td>{formatCurrency(mrpTotal || totals.mrpEnteredTotal)}</td>
-                <td className="print-accent">
-                  {totals.discountPct.toFixed(1)}% (You saved{' '}
-                  {formatCurrency(savedAmount)})
-                </td>
-                <td>{new Date().toLocaleString()}</td>
-              </tr>
-              <tr>
-                <td colSpan={4}>
-                  Amount in words: {totalInWords} rupees
-                </td>
-              </tr>
-            </tbody>
-          </table>
-
-          <table className="print-table">
-            <thead>
-              <tr>
-                <th colSpan={5}>People</th>
-              </tr>
-              <tr>
-                <th>Name</th>
-                <th>MRP</th>
-                <th>Share</th>
-                <th>Percent</th>
-                <th>Net (owes/gets)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {totals.perPerson.map((person) => (
-                <tr key={person.id}>
-                  <td>{person.name}</td>
-                  <td>{formatCurrency(person.mrp || 0)}</td>
-                  <td>{formatCurrency(person.share)}</td>
-                  <td>{(person.efficiency * 100).toFixed(1)}%</td>
-                  <td>
-                    {paidById
-                      ? person.id === paidById
-                        ? `Gets ${formatCurrency(
-                            round2(totalBillNum - person.share)
-                          )}`
-                        : `Owes ${formatCurrency(person.share)}`
-                      : '—'}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {totals.balances.length > 0 && (
-            <table className="print-table">
-              <thead>
-                <tr>
-                  <th colSpan={3}>Who owes whom</th>
-                </tr>
-                <tr>
-                  <th>From</th>
-                  <th>To</th>
-                  <th>Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {totals.balances.map((b, idx) => (
-                  <tr key={idx}>
-                    <td>{b.from}</td>
-                    <td>{b.to}</td>
-                    <td>{formatCurrency(b.amount)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-
-          <p style={{ marginTop: '12px' }}>
-            Values use proportional split (person MRP ÷ total MRP × final bill).
-            Thank you.
-          </p>
-          {splitUrl && (
-            <div className="print-qr">
-              <img
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(
-                  splitUrl
-                )}`}
-                alt="QR to open split"
-              />
-              <p className="muted small">Scan to visit website: {splitUrl}</p>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   )
 }
