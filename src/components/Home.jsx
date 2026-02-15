@@ -26,6 +26,7 @@ const Home = ({
   setMrpTotal,
   updateCurrentSplit,
   removePerson,
+  setPeople,
   formatCurrency,
   uniqueSlug,
   updateUrlFromSplitId

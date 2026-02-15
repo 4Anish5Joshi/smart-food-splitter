@@ -34,7 +34,7 @@ const CreateSplitModal = ({
         <div className="friends-list">
           <div className="friends-head">
             <span>Friends</span>
-            <button className="ghost small" onClick={addFriendRow}>
+            <button className="ghost small" onClick={() => addFriendRow()}>
               + Add friend
             </button>
           </div>
@@ -66,6 +66,7 @@ const CreateSplitModal = ({
                   type="text"
                   placeholder={`Friend ${idx + 1}`}
                   value={f.name}
+                  autoFocus={idx === newFriends.length - 1}
                   onChange={(e) => updateFriendRow(f.id, 'name', e.target.value)}
                 />
               </label>

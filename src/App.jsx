@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
 import './App.css'
 import foodLogo from './assets/food-logo.png'
 import foodLogoWhite from './assets/food-logo-white.png'
@@ -9,6 +10,8 @@ import ExportPdf from './components/ExportPdf'
 import CreateSplitModal from './components/modals/CreateSplitModal'
 import AddFriendModal from './components/modals/AddFriendModal'
 import SpendAnalyzerModal from './components/modals/SpendAnalyzerModal'
+import { setSelectedId as setSelectedIdAction, setSplits as setSplitsAction } from './store/slices/splitsSlice'
+import { setAuthError, setSavedCreds, setUser } from './store/slices/authSlice'
 
 const formatCurrency = (value) =>
   new Intl.NumberFormat('en-IN', {
@@ -123,7 +126,6 @@ const numberToWords = (num) => {
 }
 
 const STORAGE_KEY = 'smart-food-splitter-v2'
-const USER_KEY = 'smart-food-splitter-user'
 const CREDS_KEY = 'smart-food-splitter-creds'
 const BASE_PATH = '/smart-food-splitter'
 const PALETTE = [
@@ -138,28 +140,16 @@ const PALETTE = [
 ]
 
 function App() {
-  const [splits, setSplits] = useState([])
-  const [selectedId, setSelectedId] = useState(null)
+  const dispatch = useDispatch()
+  const splits = useSelector((state) => state.splits.items)
+  const selectedId = useSelector((state) => state.splits.selectedId)
+  const user = useSelector((state) => state.auth.user)
+  const savedCreds = useSelector((state) => state.auth.savedCreds)
+  const authError = useSelector((state) => state.auth.authError)
 
-  const [user, setUser] = useState(() => {
-    try {
-      const saved = localStorage.getItem(USER_KEY)
-      return saved ? JSON.parse(saved) : null
-    } catch {
-      return null
-    }
-  })
-  const [savedCreds, setSavedCreds] = useState(() => {
-    try {
-      const saved = localStorage.getItem(CREDS_KEY)
-      return saved ? JSON.parse(saved) : null
-    } catch {
-      return null
-    }
-  })
+  const [authHydrated, setAuthHydrated] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [authError, setAuthError] = useState('')
 
   const [splitName, setSplitName] = useState('')
   const [totalBill, setTotalBill] = useState('')
@@ -208,6 +198,30 @@ function App() {
   const hasSplit = selectedId !== null
   const savedAmount = Math.max(0, mrpTotalNum - totalBillNum)
 
+const USER_KEY = 'smart-food-splitter-auth'
+
+// Load auth creds from localStorage (user now persisted under USER_KEY)
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(CREDS_KEY)
+      if (saved) {
+        dispatch(setSavedCreds(JSON.parse(saved)))
+      }
+    } catch (e) {
+      console.warn('Failed to load creds', e)
+    }
+    try {
+    const savedUser = localStorage.getItem(USER_KEY)
+    if (savedUser) {
+      dispatch(setUser(JSON.parse(savedUser)))
+    }
+  } catch (e) {
+    console.warn('Failed to load user', e)
+  } finally {
+    setAuthHydrated(true)
+  }
+}, [dispatch])
+
   // Load saved data
   useEffect(() => {
     try {
@@ -220,7 +234,7 @@ function App() {
         ...s,
         slug: s.slug || uniqueSlug(s.name || `split-${idx + 1}`, arr, s.id)
       }))
-      setSplits(hydratedSplits)
+      dispatch(setSplitsAction(hydratedSplits))
       const rawPath = window.location.pathname
       const trimmed =
         rawPath.startsWith(BASE_PATH) ? rawPath.slice(BASE_PATH.length) : rawPath
@@ -236,7 +250,7 @@ function App() {
         hydratedSplits.find((s) => s.id === parsed.selectedId)?.id ||
         hydratedSplits[0]?.id ||
         null
-      if (selected) setSelectedId(selected)
+      if (selected) dispatch(setSelectedIdAction(selected))
     } catch (e) {
       console.warn('Failed to read saved split', e)
     } finally {
@@ -413,9 +427,8 @@ function App() {
 
   const updateCurrentSplit = (mutator) => {
     if (!selectedId) return
-    setSplits((prev) =>
-      prev.map((s) => (s.id === selectedId ? mutator(s) : s))
-    )
+    const next = splits.map((s) => (s.id === selectedId ? mutator(s) : s))
+    dispatch(setSplitsAction(next))
   }
 
   const addPerson = () => {
@@ -476,17 +489,19 @@ function App() {
       mrpTotal: '',
       paidById: cleanedFriends[0]?.id ?? null
     }
-    setSplits((prev) => [...prev, newSplit])
-    setSelectedId(newSplit.id)
-    updateUrlFromSplitId(newSplit.id, [...splits, newSplit])
+    const updated = [...splits, newSplit]
+    dispatch(setSplitsAction(updated))
+    dispatch(setSelectedIdAction(newSplit.id))
+    updateUrlFromSplitId(newSplit.id, updated)
     setShowCreateModal(false)
     setNewSplitName('')
     setNewFriends([{ id: 1, name: '', mrp: '' }])
     setCreateFriendError('')
   }
 
-  const addFriendRow = () => {
-    setNewFriends((prev) => [...prev, { id: Date.now(), name: '', mrp: '' }])
+  const addFriendRow = (prefillName = '') => {
+    const safeName = typeof prefillName === 'string' ? prefillName : ''
+    setNewFriends((prev) => [...prev, { id: Date.now(), name: safeName, mrp: '' }])
   }
 
   const updateFriendRow = (id, key, value) => {
@@ -500,7 +515,7 @@ function App() {
   }
 
   const selectSplit = (id) => {
-    setSelectedId(id)
+    dispatch(setSelectedIdAction(id))
     updateUrlFromSplitId(id)
   }
 
@@ -513,9 +528,17 @@ function App() {
   const confirmDeleteSplit = () => {
     if (!deleteTarget) return
     const remaining = splits.filter((s) => s.id !== deleteTarget.id)
-    setSplits(remaining)
+    dispatch(setSplitsAction(remaining))
+    // prune settlements for the deleted split
+    setSettlements((prev) => {
+      const next = {}
+      Object.entries(prev).forEach(([key, val]) => {
+        if (!key.startsWith(`${deleteTarget.id}:`)) next[key] = val
+      })
+      return next
+    })
     const nextSelected = remaining[0]?.id ?? null
-    setSelectedId(nextSelected)
+    dispatch(setSelectedIdAction(nextSelected))
     updateUrlFromSplitId(nextSelected, remaining)
     if (!nextSelected) {
       setSplitName('')
@@ -656,9 +679,9 @@ function App() {
             ...s,
             slug: s.slug || uniqueSlug(s.name || `split-${idx + 1}`, parsed.splits, s.id)
           }))
-          setSplits(mapped)
+          dispatch(setSplitsAction(mapped))
           updateUrlFromSplitId(mapped[0]?.id, mapped)
-          if (parsed.selectedId) setSelectedId(parsed.selectedId)
+          if (parsed.selectedId) dispatch(setSelectedIdAction(parsed.selectedId))
         }
         if (parsed.settlements) setSettlements(parsed.settlements)
       } catch (err) {
@@ -671,7 +694,7 @@ function App() {
   const handleLogin = (e) => {
     e.preventDefault()
     if (!email.trim() || !password.trim()) {
-      setAuthError('Please enter email and password')
+      dispatch(setAuthError('Please enter email and password'))
       return
     }
     if (savedCreds) {
@@ -679,23 +702,23 @@ function App() {
         email.trim() !== savedCreds.email ||
         password.trim() !== savedCreds.password
       ) {
-        setAuthError('Invalid email or password')
+        dispatch(setAuthError('Invalid email or password'))
         return
       }
     } else {
       const nextCreds = { email: email.trim(), password: password.trim() }
-      setSavedCreds(nextCreds)
+      dispatch(setSavedCreds(nextCreds))
       localStorage.setItem(CREDS_KEY, JSON.stringify(nextCreds))
     }
     const nextUser = { email: email.trim() }
-    setUser(nextUser)
-    localStorage.setItem(USER_KEY, JSON.stringify(nextUser))
-    setAuthError('')
+    dispatch(setUser(nextUser))
+  localStorage.setItem(USER_KEY, JSON.stringify(nextUser))
+    dispatch(setAuthError(''))
   }
 
   const handleLogout = () => {
-    setUser(null)
-    localStorage.removeItem(USER_KEY)
+    dispatch(setUser(null))
+  localStorage.removeItem(USER_KEY)
   }
 
   const headerProps = {
@@ -707,6 +730,25 @@ function App() {
       setAnalyzerMode('current')
       setShowAnalyzer(true)
     }
+  }
+
+  if (!authHydrated) {
+    return (
+      <div className="page">
+        <div className="splash">
+          <div className="splash-content">
+            <img
+              src={theme === 'dark' ? foodLogo : foodLogoWhite}
+              alt="Food logo"
+              className="splash-logo"
+              style={{ width: 140, height: 70, objectFit: 'contain' }}
+            />
+            <p className="eyebrow">Smart Food Splitter</p>
+            <div className="loader" aria-label="Loading" />
+          </div>
+        </div>
+      </div>
+    )
   }
 
   if (!user) {
